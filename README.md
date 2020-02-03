@@ -44,9 +44,9 @@ In this problem set, you are going to predict individual feelings towards egalit
 
 `gss_*.csv` contain a selection of variables from the 2012 GSS. Documentation for the other features (if not clearly coded) can be viewed [here](https://gssdataexplorer.norc.org/variables/vfilter). Some data pre-processing has been done in advance for you to ease your model fitting:
 
-    * Missing values have been imputed
-    * Nominal variables with more than two classes have been converted to dummy variables
-    * Remaining categorical variables have been converted to integer values
+* Missing values have been imputed
+* Nominal variables with more than two classes have been converted to dummy variables
+* Remaining categorical variables have been converted to integer values
 
 Your task is to construct a series of statistical/machine learning models to accurately predict an individual's egalitarianism using model selection and regularization methods. *Use all the available predictors for each model unless otherwise specified*.
 
