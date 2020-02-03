@@ -1,14 +1,14 @@
 # Homework 3: Linear Model Selection and Regularization
 
-## Overview
+### Overview
 
 Due Sunday by 11:59 pm.
 
-## Fork the `problem-set-3` repository
+### Fork the `problem-set-3` repository
 
-# Conceptual exercises
+## Conceptual exercises
 
-## Training/test error for subset selection
+### Training/test error for subset selection
 
 1. (5 points) Generate a data set with $p = 20$ features, $n = 1000$ observations, and an associated quantitative response vector generated according to the model
 
@@ -34,7 +34,7 @@ Due Sunday by 11:59 pm.
     
     for a range of values of $r$, where $\hat{\beta}_j^r$ is the $j$th coefficient estimate for the best model containing $r$ coefficients. Comment on what you observe. How does this compare to the test MSE plot?
     
-# Application exercises
+## Application exercises
 
 The [General Social Survey](http://gss.norc.org/) is a biannual survey of the American public.^[Conducted by NORC at the University of Chicago.]
 
