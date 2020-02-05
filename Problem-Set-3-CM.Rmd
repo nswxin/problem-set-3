@@ -1,0 +1,102 @@
+---
+title: "Problem Set 3"
+author: "Pete Cuppernull"
+date: "2/5/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(rsample)
+library(glmnet)
+library(leaps)
+library(rcfss)
+library(patchwork)
+```
+
+##Generate Data -- not sure how to get coefs exactly to 0?
+```{r}
+create_data <- function(){
+  rnorm(1000, 0, 1)
+}
+
+error <- rnorm(1000, 0, 1)
+data <- data.frame(replicate(20, create_data())) %>%
+  cbind(error) %>%
+  mutate(Y = X1+X2+X3+X4+X5 + X6+X7+X8+X9+X10 + X11+X12+X13+X14+X15 + error)
+
+
+model <- lm(Y ~ X1+X2+X3+X4+X5 + X6+X7+X8+X9+X10 + X11+X12+X13+X14+X15+X16+X17+X18+X19+X20, data = data)
+
+summary(model)
+```
+
+##Split Data -- do they actually only want 100 obs in training?
+```{r}
+data_clean <- data %>%
+  select(-error)
+split <- initial_split(data_clean, prop = .1) 
+train <- training(split)
+test <- testing(split)
+```
+
+##Best Subset Selection
+```{r}
+best_sub <- regsubsets(Y ~ ., 
+                          data = train, 
+                          nvmax = 40 
+                          )
+
+summary(best_sub)$outmat 
+
+results_bestsub <- summary(best_sub)
+
+results_best <- tibble(
+  `adj_r2` = which.max(results_bestsub$adjr2), # Adjusted r-squared
+  BIC = which.min(results_bestsub$bic), # Schwartz's information criterion
+  `c_p` = which.min(results_bestsub$cp) # Mallows' Cp
+) %>%
+  gather(statistic, best)
+
+predict.regsubsets <- function(object, newdata, id ,...) {
+  form <- as.formula(Y ~ .) 
+  mat <- model.matrix(form, newdata)
+  coefi <- coef(object, id = id)
+  xvars <- names(coefi)
+  as.vector(mat[, xvars] %*% coefi, mode = "integer")
+}
+
+predict_all <- function(object, newdata, k){
+  map(k, ~ predict.regsubsets(object, newdata, id = .x)) %>%
+    set_names(k)
+}
+
+data_clean_cv_train <- vfold_cv(train, v = 10)
+
+data_clean_cv_train <- data_clean_cv_train %>%
+  mutate(model = map(splits, ~ regsubsets(Y ~ ., data = analysis(.x), nvmax = 40)),
+         pred = map2(model, splits, ~ predict_all(.x, assessment(.y), k = 1:18))) %>%
+  unnest(pred, .preserve = splits) %>%
+  group_by(id) %>%
+  mutate(k = 1:18,
+         truth = map(splits, ~ assessment(.x)$Y)) %>%
+  unnest(pred, truth) %>%
+  group_by(id, k) %>%
+  mse(truth = truth, estimate = pred) %>%
+  group_by(k) %>%
+  summarize(.estimate = mean(.estimate))
+
+ggplot(data_clean_cv_train, aes(k, .estimate)) +
+  geom_line() +
+  geom_point() +
+  geom_vline(xintercept = which.min(data_clean_cv_train$.estimate), linetype = 2) +
+  labs(title = "Subset selection",
+       x = "Number of variables",
+       y = "10-fold CV MSE")
+
+```
+
+The model has the lowest MSE for the training set with 15 predictors.
+
