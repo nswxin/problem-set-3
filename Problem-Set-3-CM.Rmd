@@ -120,6 +120,7 @@ gss_train <- read_csv("data/gss_train.csv")
 ```{r}
 lm_gss <- lm(egalit_scale ~ ., data = gss_train)
 
+summary(lm_gss)
 lm_gss_test <- predict(lm_gss, 
                 newdata = gss_test)
 
@@ -184,4 +185,56 @@ lambda_min_lasso <- which(gss_lasso_cv$lambda == gss_lasso_cv$lambda.min)
 lasso_mse <- gss_lasso_cv$cvm[lambda_min_lasso]
 ```
 
-The MSE of the test set for the Ridge regression model is `r lasso_mse` and there are 24 non-zero coefficients.
+The MSE of the test set for the Ridge regression model is `r lasso_mse` and there are 18 non-zero coefficients.
+
+## Elastic Net
+
+```{r}
+lasso    <- glmnet(gss_train_x, gss_train_y, alpha = 1.0) 
+elastic1 <- glmnet(gss_train_x, gss_train_y, alpha = 0.25) 
+elastic2 <- glmnet(gss_train_x, gss_train_y, alpha = 0.75) 
+ridge    <- glmnet(gss_train_x, gss_train_y, alpha = 0.0)
+
+fold_id <- sample(1:10, size = length(gss_train_y), replace = TRUE)
+
+tuning_grid <- tibble::tibble(
+  alpha      = seq(0, 1, by = .1),
+  mse_min    = NA,
+  mse_1se    = NA,
+  lambda_min = NA,
+  lambda_1se = NA
+)
+
+for(i in seq_along(tuning_grid$alpha)) {
+  # fit CV model for each alpha value
+  fit <- cv.glmnet(gss_train_x, 
+                   gss_train_y, 
+                   alpha = tuning_grid$alpha[i], 
+                   foldid = fold_id)
+  
+  # extract MSE and lambda values
+  tuning_grid$mse_min[i]    <- fit$cvm[fit$lambda == fit$lambda.min]
+  tuning_grid$mse_1se[i]    <- fit$cvm[fit$lambda == fit$lambda.1se]
+  tuning_grid$lambda_min[i] <- fit$lambda.min
+  tuning_grid$lambda_1se[i] <- fit$lambda.1se
+}
+
+tuning_grid %>%
+  mutate(se = mse_1se - mse_min) %>%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
+
+elastic_mse <- min(tuning_grid$mse_min)
+
+##Non zero coefs
+cv.glmnet(
+  x = gss_train_x,
+  y = gss_train_y,
+  alpha = .4
+)
+
+```
+
+The combination of $\alpha$ and $\lambda$ thatproduce the lwoest cross validation MSE are 0.4 and 0.102, respectively. The test MSE is `r elastic_mse` and there are 20 nonzero coefficients.
