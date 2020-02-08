@@ -32,16 +32,21 @@ betas[9] <- 0
 betas[14] <- 0
 betas[19] <- 0
 
-data_scalar <- data * rep(betas, each = nrow(data))
 
 error <- rnorm(1000, 0, 1)
-data_scalar <- cbind(data_scalar, error)
+data <- cbind(data, error)
 
-data_scalar <- data_scalar %>%
-  mutate(Y = rowSums(data_scalar)) 
 
-data_scalar <- data_scalar %>%
-  select(-error)
+
+data_scalar <- data %>%
+  mutate(Y = X1*betas[1] + X2*betas[2] + X3*betas[3] + 
+             X4*betas[4] + X5*betas[5] + X6*betas[6] + 
+             X7*betas[7] + X8*betas[8] + X9*betas[9] + 
+             X10*betas[10] + X11*betas[11] + X12*betas[12] + 
+             X13*betas[13] + X14*betas[14] + X15*betas[15] + 
+             X16*betas[16] + X17*betas[17] + X18*betas[18] + 
+             X19*betas[19] + X20*betas[20])
+
 
 ```
 
@@ -71,9 +76,9 @@ get_mse <- function(model){
         return(train_mse)
 }
 
-mse <- map_dbl(1:16, get_mse)
+mse <- map_dbl(1:20, get_mse)
 
-train_mses <- as.data.frame(cbind(1:16, mse))
+train_mses <- as.data.frame(cbind(1:20, mse))
 
 
 training_mse_plot <- ggplot(train_mses, aes(V1, mse)) +
@@ -85,7 +90,11 @@ training_mse_plot <- ggplot(train_mses, aes(V1, mse)) +
        y = "MSE")
 
 training_mse_plot
-
+glimpse(best_sub)
+coef(best_sub, id=2)
+glimpse(best_sub$which)
+        
+str(train)
 ```
 
 The model has the lowest MSE for the training set with 16 predictors.
@@ -93,14 +102,15 @@ The model has the lowest MSE for the training set with 16 predictors.
 ##Plot the Test MSE for the best model of each size 
 ```{r}
 ##create vector of x's for each model size
-bestsub_df <- as.data.frame(summary(best_sub)$which)
+bestsub_df <- as.data.frame(summary(best_sub)$which) %>%
+  select(X1:X20)
 #test model string maker
 paste(paste("X", which(bestsub_df[2,-1] == TRUE), sep=""), collapse = " + ")
 #nmake function, loop it, save models
 model_cols <- function(number){
   model <- paste("Y ~", paste(paste("X", which(bestsub_df[number,-1] == TRUE), sep=""), collapse = " + "), sep = "")
 }
-best_models <- map(1:16, model_cols)
+best_models <- map(1:20, model_cols)
 ##create looped function that take model string and runs it on the test data
 test_models <- function(predictors){
   model <- lm(predictors, data = train)
@@ -117,9 +127,9 @@ get_mse_test <- function(x){
 }
 
 ##extract mse's and plot them on y axis against model size on x axis
-mse_test <- map_dbl(1:16, get_mse_test)
+mse_test <- map_dbl(1:20, get_mse_test)
 
-test_mses <- as.data.frame(cbind(1:16, mse_test))
+test_mses <- as.data.frame(cbind(1:20, mse_test))
 
 ggplot(test_mses, aes(V1, mse)) +
   geom_line() +
@@ -153,17 +163,17 @@ q7_function <- function(number){
     final
 }
 
-q7_outcomes <- map_dfr(1:16, q7_function)
+q7_outcomes <- map_dfr(1:20, q7_function)
 
-q7 <- as.data.frame(cbind(1:16, q7_outcomes))
+q7 <- as.data.frame(cbind(1:20, q7_outcomes))
 
-ggplot(q7, aes(`1:16`, sum_outcome)) +
+ggplot(q7, aes(`1:20`, sum_outcome)) +
   geom_line() +
   geom_point() +
   #geom_vline(xintercept = which.min(data_clean_cv_train$.estimate), linetype = 2) +
-  #labs(title = "Subset selection",
+  labs(title = "Subset selection",
        x = "Number of variables",
-       y = "MSE")
+       y = "Sum of Beta Differences")
 ```
 
 
