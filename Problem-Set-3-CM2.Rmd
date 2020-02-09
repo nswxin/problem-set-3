@@ -1,7 +1,7 @@
 ---
 title: "Problem Set 3"
 author: "Pete Cuppernull"
-date: "2/5/2020"
+date: "2/9/2020"
 output: pdf_document
 ---
 
@@ -48,14 +48,14 @@ data_scalar <- data %>%
 
 ```
 
-##Question 2. Split Data
+###Question 2. Split Data
 ```{r}
 split <- initial_split(data_scalar, prop = .1) 
 train <- training(split)
 test <- testing(split)
 ```
 
-##Question 3. Best Subset Selection
+###Question 3. Best Subset Selection
 ```{r}
 #do best subset
 best_sub <- regsubsets(Y ~ ., 
@@ -89,6 +89,8 @@ training_mse_plot <- ggplot(train_mses, aes(V1, mse)) +
        y = "MSE")
 
 training_mse_plot
+
+which.min(train_mses$mse)
         
 ```
 
@@ -109,7 +111,6 @@ get_mse_test2 <- function(model){
 mse_test2 <- map_dbl(1:20, get_mse_test2)
 
 test_mses2 <- as.data.frame(cbind(1:20, mse_test2))
-min(test_mses2)
 
 ggplot(test_mses2, aes(V1, mse_test2)) +
   geom_line() +
@@ -121,10 +122,10 @@ ggplot(test_mses2, aes(V1, mse_test2)) +
        y = "MSE")
 
 ```
-The model size with the minimum test set MSE has 15 predictors. The models with greater than 15 predictors have slightly higher MSEs.
+The model size with the minimum test set MSE has 15 predictors. The models with greater than 15 predictors have slightly higher MSEs. This is in line with our expected results -- MSEs for the test set will not decrease monotonically because the models will begin to be overfit once a certain threshold of predictors is reached.
 
 ###Question 6. 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 best_test_coefs <- rownames_to_column(as.data.frame(coef(best_sub, id=15))) %>%
   rename(best_test_coef = `coef(best_sub, id = 15)`)
 beta_df <- cbind(paste("X", 1:20, sep = ""), as.data.frame(betas)) %>%
@@ -132,13 +133,13 @@ beta_df <- cbind(paste("X", 1:20, sep = ""), as.data.frame(betas)) %>%
          original_coef = betas)
 coef_comparison <- left_join(best_test_coefs, beta_df) %>%
   na.omit()
-coef_comparison
+print(coef_comparison)
 ```
 
-We can observe that there are notable differences in the coeficients of the original betas and the model with 1t5 predictors, As expected, none of the predictors with true betas of 0 remained in the model with 15 predictors. These differences are due to the one non-zero beta predictor that is left out of the 15 predictor model and the error term that was originally used to generate Y.
+We can observe that there are notable differences in the coeficients of the original betas and the model with 15 predictors, As expected, none of the predictors with true betas of 0 remained in the model with 15 predictors. These differences are due to the one non-zero beta predictor that is left out of the 15 predictor model and the error term that was originally used to generate Y.
 
 ###Question 7.
-```{r}
+```{r, warning=FALSE}
 beta_df2 <- as.data.frame(cbind(paste("X", 1:20, sep = ""), betas))
 
 q7_function <- function(number){
@@ -163,23 +164,22 @@ q7 <- as.data.frame(cbind(1:20, q7_outcomes))
 ggplot(q7, aes(`1:20`, sum_outcome)) +
   geom_line() +
   geom_point() +
-  #geom_vline(xintercept = which.min(data_clean_cv_train$.estimate), linetype = 2) +
   labs(title = "Subset selection",
        x = "Number of variables",
        y = "Squared Sum of Beta Differences ")
 ```
-We observe that models with 7 and 8 predictor have coeficients that differ the most from the true betas. Once 12 predictors is reached, the squred sum of the beta differences levels out, suggesting that the coeficients of the models with 12 predictors and above are not fluctuating very much. Similarly, the MSEs of the models on the test data also leveled off at this threshold, also suggesting that there were minimal changes in the effectiveness of the models beyond 112 predictors. 
+We observe that models with less than 10 predictors have coeficients that differ the most from the true betas. Once 15 predictors is reached, the squared sum of the beta differences begins to increase, suggesting that the coefficients of the models with 15 predictors and above are not converging further on the true betas. The MSEs of the models on the test data also began to increase at this same threshold, similarly suggesting that the models were not obtaining more accurate coefficients beyond the 15 predictor threshold. 
 
 #Application Exercises
 
-
 ###Import Data
-```{r}
+```{r, message=FALSE}
+set.seed(1414)
 gss_test <- read_csv("data/gss_test.csv")
 gss_train <- read_csv("data/gss_train.csv")
 ```
 
-##LS Linear Model
+###Question 1. LS Linear Model
 ```{r}
 lm_gss <- lm(egalit_scale ~ ., data = gss_train)
 
@@ -192,14 +192,14 @@ lm_mse <- mse(gss_test, gss_test$egalit_scale, lm_gss_test)$.estimate
 
 The MSE of the test set for the least squares model is `r lm_mse`.
 
-##Ridge Regression
+###Question 2. Ridge Regression
 ```{r}
 gss_train_x <- model.matrix(egalit_scale ~ ., gss_train)[, -1]
 gss_train_y <- log(gss_train$egalit_scale)
 
 gss_train_x <- model.matrix(egalit_scale ~ ., gss_test)[, -1]
 gss_train_y <- log(gss_test$egalit_scale)
-# First: ridge regression
+
 gss_ridge <- glmnet(
   x = gss_train_x,
   y = gss_train_y,
@@ -208,9 +208,6 @@ gss_ridge <- glmnet(
 
 plot(gss_ridge, xvar = "lambda")
 
-
-# Tuning lambda
-# Apply CV Ridge regression to ames data
 gss_ridge_cv <- cv.glmnet(
   x = gss_train_x,
   y = gss_train_y,
@@ -222,10 +219,8 @@ ridge_mse <- gss_ridge_cv$cvm[lambda_min_ridge]
 
 The MSE of the test set for the Ridge regression model is `r ridge_mse`.
 
-## Lasso Regression
+### Question 3. Lasso Regression
 ```{r}
-
-# First: ridge regression
 gss_lasso <- glmnet(
   x = gss_train_x,
   y = gss_train_y,
@@ -234,24 +229,23 @@ gss_lasso <- glmnet(
 
 plot(gss_lasso, xvar = "lambda")
 
-
-# Tuning lambda
-# Apply CV Ridge regression to ames data
 gss_lasso_cv <- cv.glmnet(
   x = gss_train_x,
   y = gss_train_y,
   alpha = 1
 )
 
+gss_lasso_cv
 lambda_min_lasso <- which(gss_lasso_cv$lambda == gss_lasso_cv$lambda.min)
 lasso_mse <- gss_lasso_cv$cvm[lambda_min_lasso]
+
 ```
 
-The MSE of the test set for the Ridge regression model is `r lasso_mse` and there are 18 non-zero coefficients.
+The MSE of the test set for the Lasso regression model is `r lasso_mse` and there are 18 non-zero coefficients.
 
-## Elastic Net
+### Question 4. Elastic Net
 
-```{r}
+```{r, warning=FALSE}
 lasso    <- glmnet(gss_train_x, gss_train_y, alpha = 1.0) 
 elastic1 <- glmnet(gss_train_x, gss_train_y, alpha = 0.25) 
 elastic2 <- glmnet(gss_train_x, gss_train_y, alpha = 0.75) 
@@ -281,22 +275,25 @@ for(i in seq_along(tuning_grid$alpha)) {
   tuning_grid$lambda_1se[i] <- fit$lambda.1se
 }
 
-tuning_grid %>%
-  mutate(se = mse_1se - mse_min) %>%
-  ggplot(aes(alpha, mse_min)) +
-  geom_line(size = 2) +
-  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
-  ggtitle("MSE ± one standard error")
 
 elastic_mse <- min(tuning_grid$mse_min)
 
+tuning_grid
+
 ##Non zero coefs
-cv.glmnet(
+cv.glmnet <- cv.glmnet(
   x = gss_train_x,
   y = gss_train_y,
-  alpha = .4
+  alpha = tuning_grid[which(tuning_grid[,2]==min(tuning_grid[,2])), 1]
 )
+
+cv.glmnet
 
 ```
 
-The combination of $\alpha$ and $\lambda$ thatproduce the lwoest cross validation MSE are 0.4 and 0.102, respectively. The test MSE is `r elastic_mse` and there are 20 nonzero coefficients.
+The combination of $\alpha$ and $\lambda$ that produce the lowest cross validation MSE are `r tuning_grid[which(tuning_grid[,2]==min(tuning_grid[,2])), 1]` and `r cv.glmnet$lambda.min`, respectively. The test MSE is `r elastic_mse` and there are 22 nonzero coefficients.
+
+
+### Question 5. Reflection.
+
+The elastic net approach provides a slightly lower MSE than both ridge and lasso regression, at `r elastic_mse` compared to `r ridge_mse` and `r lasso_mse`, respectively. Considering that egalitarianism is measured on a 35 point scale, this would imply that model predictions are in expectation about 0.7 points removed from the true value -- I would argue that this is a relatively accurate estimate, which could potentially even be improved further with the inclusion of further relevant predictor variables.
